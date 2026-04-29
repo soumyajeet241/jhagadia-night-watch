@@ -24,6 +24,10 @@
   --green-bg:     #064E3B;
   --red:          #F87171;
   --red-bg:       #7F1D1D;
+
+  /* Classic readable font stack — Calibri first, then Arial, then Times fallback */
+  --font-main:    'Calibri', 'Arial', 'Helvetica Neue', sans-serif;
+  --font-mono:    'Courier New', 'Consolas', monospace;
 }
 
 html, body {
@@ -31,14 +35,19 @@ html, body {
   color: var(--text);
   margin: 0;
   -webkit-tap-highlight-color: transparent;
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: var(--font-main);
+  font-size: 15px;
+  line-height: 1.5;
 }
 
 #root { background: var(--bg); min-height: 100vh; }
 
-.font-display { font-family: 'Archivo', sans-serif; letter-spacing: -0.02em; }
-.font-narrow  { font-family: 'Archivo Narrow', sans-serif; }
-.font-mono    { font-family: 'JetBrains Mono', monospace; }
+/* Override all the Archivo/JetBrains classes with classic fonts */
+.font-display { font-family: var(--font-main); font-weight: 700; letter-spacing: 0; }
+.font-narrow  { font-family: var(--font-main); }
+.font-mono    { font-family: var(--font-mono); }
+
+input, textarea, select, button { font-family: var(--font-main); }
 
 .grain {
   background-image: radial-gradient(rgba(255,255,255,0.025) 1px, transparent 1px);
@@ -68,8 +77,6 @@ html, body {
 .scroll-thin::-webkit-scrollbar { width: 6px; height: 6px; }
 .scroll-thin::-webkit-scrollbar-thumb { background: var(--line); border-radius: 3px; }
 .scroll-thin::-webkit-scrollbar-track { background: transparent; }
-
-input, textarea, select, button { font-family: inherit; }
 
 @keyframes flagPulse {
   0%, 100% { transform: scale(1); filter: drop-shadow(0 0 6px #F87171); }
