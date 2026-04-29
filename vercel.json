@@ -1,0 +1,9 @@
+{
+  "rewrites": [
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
+  ],
+  "functions": {
+    "api/notify.js": { "maxDuration": 10 },
+    "api/inbound.js": { "maxDuration": 10 }
+  }
+}
