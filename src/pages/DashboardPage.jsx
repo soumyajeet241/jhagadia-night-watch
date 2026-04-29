@@ -71,11 +71,22 @@ export default function DashboardPage() {
   }, []);
 
   // Filtered incidents
-  const filtered = useMemo(() => incidents.filter(i =>
-    (!filterArea || i.area === filterArea) &&
-    (!filterCategory || i.category === filterCategory) &&
-    (!search || (i.description + ' ' + i.location + ' ' + (i.reporter_name || '')).toLowerCase().includes(search.toLowerCase()))
-  ), [incidents, filterArea, filterCategory, search]);
+  const filtered = useMemo(() => incidents.filter(i => {
+    if (filterArea && i.area !== filterArea) return false;
+    if (filterCategory && i.category !== filterCategory) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      const catLabel = CATEGORIES.find(c => c.key === i.category)?.label?.toLowerCase() || '';
+      const catShort = CATEGORIES.find(c => c.key === i.category)?.short?.toLowerCase() || '';
+      const hay = [
+        i.description, i.location, i.reporter_name,
+        i.area, i.severity, i.category,
+        catLabel, catShort,
+      ].join(' ').toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  }), [incidents, filterArea, filterCategory, search]);
 
   // Matrix: area.name → category.key → incidents[]
   const matrix = useMemo(() => {
@@ -84,6 +95,23 @@ export default function DashboardPage() {
     filtered.forEach(inc => { if (m[inc.area]?.[inc.category]) m[inc.area][inc.category].push(inc); });
     return m;
   }, [filtered]);
+
+  // Sort areas and categories by total incident count descending
+  const sortedAreas = useMemo(() => {
+    return [...PLANT_AREAS].sort((a, b) => {
+      const countA = CATEGORIES.reduce((s, c) => s + (matrix[a.name]?.[c.key]?.length || 0), 0);
+      const countB = CATEGORIES.reduce((s, c) => s + (matrix[b.name]?.[c.key]?.length || 0), 0);
+      return countB - countA;
+    });
+  }, [matrix]);
+
+  const sortedCategories = useMemo(() => {
+    return [...CATEGORIES].sort((a, b) => {
+      const countA = PLANT_AREAS.reduce((s, area) => s + (matrix[area.name]?.[a.key]?.length || 0), 0);
+      const countB = PLANT_AREAS.reduce((s, area) => s + (matrix[area.name]?.[b.key]?.length || 0), 0);
+      return countB - countA;
+    });
+  }, [matrix]);
 
   const total  = filtered.length;
   const pending   = filtered.filter(i => !i.feedback).length;
@@ -184,7 +212,8 @@ export default function DashboardPage() {
                   <MatrixTable matrix={matrix} pulseIds={pulseIds}
                     filterArea={filterArea} filterCategory={filterCategory}
                     setFilterArea={setFilterArea} setFilterCategory={setFilterCategory}
-                    openCell={openCell} total={total} />
+                    openCell={openCell} total={total}
+                    sortedAreas={sortedAreas} sortedCategories={sortedCategories} />
                   <LiveFeed incidents={filtered} pulseIds={pulseIds}
                     onSelect={inc => { setSelected(inc); setModalType('detail'); }} />
                 </div>
@@ -234,7 +263,7 @@ function ViewToggleBtn({ active, onClick, icon, label }) {
 }
 
 // ─── Matrix Table ───────────────────────────────────────────────
-function MatrixTable({ matrix, pulseIds, filterArea, filterCategory, setFilterArea, setFilterCategory, openCell, total }) {
+function MatrixTable({ matrix, pulseIds, filterArea, filterCategory, setFilterArea, setFilterCategory, openCell, total, sortedAreas, sortedCategories }) {
   return (
     <div className="overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: '4px' }}>
       <div className="px-5 py-3 flex items-center justify-between flex-wrap gap-2"
@@ -255,7 +284,7 @@ function MatrixTable({ matrix, pulseIds, filterArea, filterCategory, setFilterAr
                   style={{ background: 'var(--bg-3)', color: 'var(--text-muted)', borderBottom: '1px solid var(--line)' }}>
                 Area ↓ / Category →
               </th>
-              {CATEGORIES.map(c => (
+              {sortedCategories.map(c => (
                 <th key={c.key}
                     onClick={() => setFilterCategory(filterCategory === c.key ? null : c.key)}
                     className="px-2 py-3 text-center cursor-pointer transition"
@@ -270,8 +299,8 @@ function MatrixTable({ matrix, pulseIds, filterArea, filterCategory, setFilterAr
             </tr>
           </thead>
           <tbody>
-            {PLANT_AREAS.map((area, idx) => {
-              const rowTotal = CATEGORIES.reduce((s, c) => s + (matrix[area.name]?.[c.key]?.length || 0), 0);
+            {sortedAreas.map((area, idx) => {
+              const rowTotal = sortedCategories.reduce((s, c) => s + (matrix[area.name]?.[c.key]?.length || 0), 0);
               const isFilteredOut = filterArea && filterArea !== area.name;
               return (
                 <tr key={area.key} style={{ opacity: isFilteredOut ? 0.2 : 1, transition: 'opacity 0.2s' }}>
@@ -283,7 +312,7 @@ function MatrixTable({ matrix, pulseIds, filterArea, filterCategory, setFilterAr
                       <span className="text-[12px]">{area.short}</span>
                     </div>
                   </td>
-                  {CATEGORIES.map(c => {
+                  {sortedCategories.map(c => {
                     const list = matrix[area.name]?.[c.key] || [];
                     const count = list.length;
                     const hasPhoto = list.some(i => i.photo_url);
@@ -329,7 +358,7 @@ function MatrixTable({ matrix, pulseIds, filterArea, filterCategory, setFilterAr
                   style={{ background: 'var(--surface-2)', color: 'var(--gold)', borderTop: '1px solid var(--gold)' }}>
                 Σ Column total
               </td>
-              {CATEGORIES.map(c => {
+              {sortedCategories.map(c => {
                 const t = PLANT_AREAS.reduce((s, a) => s + (matrix[a.name]?.[c.key]?.length || 0), 0);
                 return (
                   <td key={c.key} className="py-3 text-center font-display font-black tabular-nums"
